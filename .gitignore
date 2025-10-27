@@ -18,6 +18,8 @@ wheels/
 
 # Misc
 *.ipynb
-
+.idea
 # Reports
 evals/reports/
+=
+exporting
