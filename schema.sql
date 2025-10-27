@@ -27,3 +27,15 @@ CREATE TABLE IF NOT EXISTS thread (
 -- Create indexes for frequently queried columns
 CREATE INDEX IF NOT EXISTS idx_user_email ON user(email);
 CREATE INDEX IF NOT EXISTS idx_session_user_id ON session(user_id);
+
+-- Create file_objects table
+
+CREATE TABLE IF NOT EXISTS thread (
+    id TEXT PRIMARY KEY,
+    file_name TEXT NOT NULL DEFAULT '',
+    description TEXT NOT NULL DEFAULT '',
+    created_by TEXT NOT NULL,
+    session_id TEXT NOT NULL,
+    file_type TEXT NOT NULL DEFAULT '',
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
