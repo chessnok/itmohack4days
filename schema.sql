@@ -35,6 +35,7 @@ CREATE TABLE IF NOT EXISTS thread (
     file_name TEXT NOT NULL DEFAULT '',
     description TEXT NOT NULL DEFAULT '',
     created_by TEXT NOT NULL,
+    embedding VECTOR NOT NULL,
     session_id TEXT NOT NULL,
     file_type TEXT NOT NULL DEFAULT '',
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP

@@ -22,7 +22,22 @@ from app.core.config import (
 from app.core.logging import logger
 from app.models.session import Session as ChatSession
 from app.models.user import User
+from datetime import datetime
+from typing import Optional
+from sqlmodel import SQLModel, Field
 
+class FileObject(SQLModel, table=True):
+    __tablename__ = "file_objects"
+
+    id: str = Field(primary_key=True)
+    file_name: str = Field(default="")
+    description: str = Field(default="")
+    created_by: str
+    session_id: str
+    file_type: str = Field(default="")
+    s3_key: str
+    s3_url: str
+    created_at: datetime = Field(default_factory=datetime.utcnow)
 
 class DatabaseService:
     """Service class for database operations.
@@ -245,6 +260,70 @@ class DatabaseService:
         except Exception as e:
             logger.error("database_health_check_failed", error=str(e))
             return False
+
+
+
+    async def create_file_object(
+            self,
+            *,
+            id: str,
+            file_name: str,
+            description: str,
+            created_by: str,
+            session_id: str,
+            file_type: str,
+            s3_key: str,
+            s3_url: str,
+    ) -> FileObject:
+        with Session(self.engine) as session:
+            obj = FileObject(
+                id=id,
+                file_name=file_name,
+                description=description,
+                created_by=created_by,
+                session_id=session_id,
+                file_type=file_type,
+                s3_key=s3_key,
+                s3_url=s3_url,
+            )
+            session.add(obj)
+            session.commit()
+            session.refresh(obj)
+            logger.info("file_object_created", id=id, session_id=session_id, created_by=created_by, s3_key=s3_key)
+            return obj
+
+    async def get_file_object(self, id: str) -> Optional[FileObject]:
+        with Session(self.engine) as session:
+            return session.get(FileObject, id)
+
+    async def list_files_by_session(self, session_id: str) -> list[FileObject]:
+        with Session(self.engine) as session:
+            stmt = select(FileObject).where(FileObject.session_id == session_id).order_by(FileObject.created_at.desc())
+            return list(session.exec(stmt).all())
+
+    async def update_file_description(self, id: str, description: str) -> FileObject:
+        with Session(self.engine) as session:
+            obj = session.get(FileObject, id)
+            if not obj:
+                raise HTTPException(status_code=404, detail="File object not found")
+            obj.description = description
+            session.add(obj)
+            session.commit()
+            session.refresh(obj)
+            logger.info("file_object_description_updated", id=id)
+            return obj
+
+    async def delete_file_object(self, id: str) -> bool:
+        with Session(self.engine) as session:
+            obj = session.get(FileObject, id)
+            if not obj:
+                return False
+            session.delete(obj)
+            session.commit()
+            logger.info("file_object_deleted", id=id)
+            return True
+
+
 
 
 # Create a singleton instance

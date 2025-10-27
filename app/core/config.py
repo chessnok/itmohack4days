@@ -138,6 +138,12 @@ class Settings:
         )
         self.API_V1_STR = os.getenv("API_V1_STR", "/api/v1")
         self.DEBUG = os.getenv("DEBUG", "false").lower() in ("true", "1", "t", "yes")
+        self.S3_ENDPOINT: str | None = os.getenv("S3_ENDPOINT", "")
+        self.S3_REGION: str =os.getenv("S3_REGION", "")
+        self.S3_BUCKET: str= os.getenv("S3_BUCKET", "")
+        self.S3_ACCESS_KEY_ID: str =os.getenv("S3_ACCESS_KEY_ID", "")
+        self.S3_SECRET_ACCESS_KEY: str =os.getenv("S3_SECRET_ACCESS_KEY", "")
+        self.S3_PUBLIC_BASE_URL: str | None = os.getenv("S3_PUBLIC_BASE_URL:", "")
 
         # CORS Settings
         self.ALLOWED_ORIGINS = parse_list_from_env("ALLOWED_ORIGINS", ["*"])
