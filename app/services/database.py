@@ -1,8 +1,7 @@
 """This file contains the database service for the application."""
 import uuid
 from typing import (
-    List, Tuple,
-)
+    List, )
 from typing import Optional
 
 from fastapi import HTTPException
@@ -20,7 +19,7 @@ from app.core.config import (
     settings,
 )
 from app.core.logging import logger
-from app.models.file import FileObject
+from app.models.file import FileObject, FileChunk
 from app.models.session import Session as ChatSession
 from app.models.user import User
 
@@ -315,34 +314,24 @@ class DatabaseService:
             self,
             sql_sess: Session,
             file_id: str,
-            chunks: List[str],
-            vectors: List[List[float]],
+            chunks: list[str],
+            vectors: list[list[float]],
     ) -> None:
-        rows: List[Tuple[str, str, int, str, list]] = []
-        for idx, (c, v) in enumerate(zip(chunks, vectors)):
-            rows.append((uuid.uuid4().hex, file_id, idx, c, v))
-
-        # Используем unnest или перебор – здесь для простоты перебор.
-        insert_sql = """
-                     INSERT INTO file_chunks (id, file_id, chunk_index, content, embedding)
-                     VALUES (:id, :file_id, :chunk_index, :content, :embedding) \
-                     """
+        """Вставляет чанки (кусочки текста и эмбеддинги) в таблицу file_chunks."""
         try:
-            for r in rows:
-                sql_sess.exec(
-                    insert_sql,
-                    params={
-                        "id": r[0],
-                        "file_id": r[1],
-                        "chunk_index": r[2],
-                        "content": r[3],
-                        "embedding": r[4],
-                    },
-                )
+            objects: list[FileChunk] = []
+            for idx, (content, vector) in enumerate(zip(chunks, vectors)):
+                objects.append(FileChunk(id=uuid.uuid4().hex,
+                                         file_id=file_id,
+                                         chunk_index=idx,
+                                         content=content,
+                                         embedding=vector,
+                                         ))
+            sql_sess.add_all(objects)
             sql_sess.commit()
-        except Exception as e:
+        except Exception:
             sql_sess.rollback()
-            raise e
+            raise
 
 # Create a singleton instance
 database_service = DatabaseService()

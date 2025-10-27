@@ -3,10 +3,10 @@ import mimetypes
 from typing import List
 
 import docx2txt
+import numpy as np
 import pytesseract
 from fastapi import APIRouter
 from langchain_openai import OpenAIEmbeddings
-
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from pdfreader.types import Image
 from pypdf import PdfReader
@@ -47,7 +47,7 @@ class EmbeddingPipeline:
             filename: str,
             content_type: str,
             file_bytes: bytes,
-    ) -> int:
+    ):
         """
         Полный цикл: извлечь текст → разбить → создать эмбеддинги → сохранить.
         Возвращает количество сохраненных чанков.
@@ -68,7 +68,7 @@ class EmbeddingPipeline:
             database_service._insert_chunks(sql_sess, file_id, chunks, vectors)
 
         logger.info("embedding_indexed", file_id=file_id, chunks=len(chunks))
-        return len(chunks)
+        return np.mean(np.array(vectors, dtype=float), axis=0).tolist()
 
 class FileTextExtractor:
     @staticmethod

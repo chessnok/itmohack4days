@@ -1,6 +1,6 @@
 """Database models for the application."""
 
+from app.models.file import FileObject, FileChunk
 from app.models.thread import Thread
-from app.models.file import FileObject
 
-__all__ = ["Thread","FileObject"]
+__all__ = ["Thread", "FileObject", "FileChunk"]

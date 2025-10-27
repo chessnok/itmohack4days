@@ -29,7 +29,7 @@ class FileChunk(SQLModel, table=True):
     id: str = Field(primary_key=True)
     file_id: str = Field(default="")
     embedding:  list[float] = Field(sa_column=Column(PGVector(EMBEDDING_DIM)))
-    content: str
+    content: str = Field(default="")
     chunk_index: int
 
 
