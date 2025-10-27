@@ -17,7 +17,6 @@ wheels/
 .env.production
 
 # Misc
-.idea
 *.ipynb
 
 # Reports
