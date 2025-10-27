@@ -138,6 +138,7 @@ class Settings:
         )
         self.API_V1_STR = os.getenv("API_V1_STR", "/api/v1")
         self.DEBUG = os.getenv("DEBUG", "false").lower() in ("true", "1", "t", "yes")
+
         self.S3_ENDPOINT: str | None = os.getenv("S3_ENDPOINT", "")
         self.S3_REGION: str =os.getenv("S3_REGION", "")
         self.S3_BUCKET: str= os.getenv("S3_BUCKET", "")
@@ -207,6 +208,8 @@ class Settings:
         self.EVALUATION_BASE_URL = os.getenv("EVALUATION_BASE_URL", "https://api.openai.com/v1")
         self.EVALUATION_API_KEY = os.getenv("EVALUATION_API_KEY", self.LLM_API_KEY)
         self.EVALUATION_SLEEP_TIME = int(os.getenv("EVALUATION_SLEEP_TIME", "10"))
+
+        self.EMBEDDING_MODEL=os.getenv("EMBEDDING_MODEL", "text-embedding-ada-002")
 
         # Apply environment-specific settings
         self.apply_environment_settings()

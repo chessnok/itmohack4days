@@ -28,9 +28,10 @@ CREATE TABLE IF NOT EXISTS thread (
 CREATE INDEX IF NOT EXISTS idx_user_email ON user(email);
 CREATE INDEX IF NOT EXISTS idx_session_user_id ON session(user_id);
 
--- Create file_objects table
+create extension if not exists vector;
 
-CREATE TABLE IF NOT EXISTS thread (
+-- Create file_objects tablea
+CREATE TABLE IF NOT EXISTS file_objects (
     id TEXT PRIMARY KEY,
     file_name TEXT NOT NULL DEFAULT '',
     description TEXT NOT NULL DEFAULT '',
@@ -40,3 +41,15 @@ CREATE TABLE IF NOT EXISTS thread (
     file_type TEXT NOT NULL DEFAULT '',
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
+
+create table file_chunks
+(
+    id          varchar not null
+        primary key,
+    file_id     varchar not null,
+    embedding   vector(1536),
+    content     varchar not null,
+    chunk_index integer not null
+);
+
+

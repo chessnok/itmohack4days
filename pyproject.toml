@@ -9,7 +9,7 @@ dependencies = [
     "langchain>=0.3.25",
     "langchain-core>=0.3.58",
     "langchain-openai>=0.3.16",
-    "langfuse==3.0.3",
+    "langfuse==3.4",
     "langgraph>=0.4.1",
     "langgraph-checkpoint-postgres>=2.0.19",
     "passlib[bcrypt]>=1.7.4",
@@ -34,6 +34,13 @@ dependencies = [
     "tqdm>=4.67.1",
     "colorama>=0.4.6",
     "ddgs>=9.6.0",
+    "pypdf",
+    "pgvector",
+    "docx2txt",
+    "pytesseract",
+    "pdfreader",
+    "boto3",
+
 ]
 
 [project.optional-dependencies]

@@ -10,6 +10,7 @@ from app.api.v1.auth import get_current_user, get_current_session
 from app.core.logging import logger
 from app.models.session import Session
 from app.services import database_service
+from app.services.embeddings import embedding_pipeline
 from app.services.s3 import s3_service
 
 router = APIRouter()
@@ -102,14 +103,13 @@ async def _save_upload_file(file: UploadFile, dest_dir: Path) -> dict:
 
 
 @router.post(
-    "/files",
+    "/upload",
     status_code=status.HTTP_201_CREATED,
     summary="Upload files (docx, pdf, images)",
 )
 async def upload_files(
         current_session: Session = Depends(get_current_session),
         files: List[UploadFile] = File(..., description="One or more files"),
-        user: "User" = Depends(get_current_user),
 
 ):
     """
@@ -120,23 +120,28 @@ async def upload_files(
     if not files:
         raise HTTPException(status_code=400, detail="No files provided")
     session_id = current_session.id
+    user_id=current_session.user_id
 
     results = []
     for f in files:
+        file_id = uuid.uuid4().hex
+        name = f.filename or up["stored_name"]
         # 1) Заливаем в S3
         up = await s3_service.upload_file(
             file=f,
             session_id=session_id,
-            created_by=str(user.id),
+            created_by=str(user_id),
         )
+        await f.seek(0)
+        embedding = embedding_pipeline.index_file(file_id=file_id, filename=name, content_type=up["content_type"],
+                                                  file_bytes= await f.read())
 
-        # 2) Создаём запись в БД
-        file_id = uuid.uuid4().hex
         obj = await database_service.create_file_object(
             id=file_id,
-            file_name=f.filename or up["stored_name"],
+            file_name=name,
             description="",
-            created_by=str(user.id),
+            vector = embedding,
+            created_by=str(user_id),
             session_id=session_id,
             file_type=up["content_type"],
             s3_key=up["key"],
@@ -151,6 +156,5 @@ async def upload_files(
             "s3_key": obj.s3_key,
         })
 
-    logger.info("files_uploaded_and_recorded", count=len(results), session_id=session_id, user_id=user.id)
+    logger.info("files_uploaded_and_recorded", count=len(results), session_id=session_id, user_id=user_id)
     return {"files": results}
-

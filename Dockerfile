@@ -34,6 +34,8 @@ RUN chmod +x /app/scripts/docker-entrypoint.sh
 
 # Create a non-root user
 RUN useradd -m appuser && chown -R appuser:appuser /app
+USER root
+RUN mkdir -p /data/uploads /data/logs && chown -R appuser:appuser /data
 USER appuser
 
 # Create log directory

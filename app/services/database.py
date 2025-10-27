@@ -1,16 +1,16 @@
 """This file contains the database service for the application."""
-
+import uuid
 from typing import (
-    List,
-    Optional,
+    List, Tuple,
 )
+from typing import Optional
 
 from fastapi import HTTPException
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.pool import QueuePool
+from sqlmodel import SQLModel
 from sqlmodel import (
     Session,
-    SQLModel,
     create_engine,
     select,
 )
@@ -20,24 +20,10 @@ from app.core.config import (
     settings,
 )
 from app.core.logging import logger
+from app.models.file import FileObject
 from app.models.session import Session as ChatSession
 from app.models.user import User
-from datetime import datetime
-from typing import Optional
-from sqlmodel import SQLModel, Field
 
-class FileObject(SQLModel, table=True):
-    __tablename__ = "file_objects"
-
-    id: str = Field(primary_key=True)
-    file_name: str = Field(default="")
-    description: str = Field(default="")
-    created_by: str
-    session_id: str
-    file_type: str = Field(default="")
-    s3_key: str
-    s3_url: str
-    created_at: datetime = Field(default_factory=datetime.utcnow)
 
 class DatabaseService:
     """Service class for database operations.
@@ -270,6 +256,7 @@ class DatabaseService:
             file_name: str,
             description: str,
             created_by: str,
+            vector: List[float],
             session_id: str,
             file_type: str,
             s3_key: str,
@@ -280,6 +267,7 @@ class DatabaseService:
                 id=id,
                 file_name=file_name,
                 description=description,
+                vector=vector,
                 created_by=created_by,
                 session_id=session_id,
                 file_type=file_type,
@@ -323,8 +311,38 @@ class DatabaseService:
             logger.info("file_object_deleted", id=id)
             return True
 
+    def _insert_chunks(
+            self,
+            sql_sess: Session,
+            file_id: str,
+            chunks: List[str],
+            vectors: List[List[float]],
+    ) -> None:
+        rows: List[Tuple[str, str, int, str, list]] = []
+        for idx, (c, v) in enumerate(zip(chunks, vectors)):
+            rows.append((uuid.uuid4().hex, file_id, idx, c, v))
 
-
+        # Используем unnest или перебор – здесь для простоты перебор.
+        insert_sql = """
+                     INSERT INTO file_chunks (id, file_id, chunk_index, content, embedding)
+                     VALUES (:id, :file_id, :chunk_index, :content, :embedding) \
+                     """
+        try:
+            for r in rows:
+                sql_sess.exec(
+                    insert_sql,
+                    params={
+                        "id": r[0],
+                        "file_id": r[1],
+                        "chunk_index": r[2],
+                        "content": r[3],
+                        "embedding": r[4],
+                    },
+                )
+            sql_sess.commit()
+        except Exception as e:
+            sql_sess.rollback()
+            raise e
 
 # Create a singleton instance
 database_service = DatabaseService()
