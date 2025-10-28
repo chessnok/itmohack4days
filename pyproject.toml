@@ -40,7 +40,11 @@ dependencies = [
     "pytesseract",
     "pdfreader",
     "boto3",
-
+    "yandex-cloud-ml-sdk",
+    "langchain-postgres==0.0.15",
+    "greenlet",
+    "transformers",
+    "sentencepiece"
 ]
 
 [project.optional-dependencies]

@@ -6,7 +6,6 @@ import docx2txt
 import numpy as np
 import pytesseract
 from fastapi import APIRouter
-from langchain_openai import OpenAIEmbeddings
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from pdfreader.types import Image
 from pypdf import PdfReader
@@ -24,11 +23,17 @@ class EmbeddingPipeline:
     Готовит текст, режет на куски, строит эмбеддинги, сохраняет в file_chunks (pgvector).
     """
     def __init__(self):
-        self.emb = OpenAIEmbeddings(
-            api_key=settings.LLM_API_KEY,
-            model=settings.EMBEDDING_MODEL,
-            openai_api_base=settings.EVALUATION_BASE_URL
-        )
+        if settings.PROVIDER == "YANDEX":
+            from app.services.yandex import embeddings
+            self.emb = embeddings
+        else:
+            from langchain_openai import OpenAIEmbeddings
+
+            self.emb = OpenAIEmbeddings(
+                api_key=settings.LLM_API_KEY,
+                model=settings.EMBEDDING_MODEL,
+                openai_api_base=settings.EVALUATION_BASE_URL
+            )
 
         self.splitter = RecursiveCharacterTextSplitter(
             chunk_size=1000,

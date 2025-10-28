@@ -1,22 +1,21 @@
 """This file contains the LangGraph Agent/workflow and interactions with the LLM."""
 
 from typing import (
-    Any,
     AsyncGenerator,
-    Dict,
     Literal,
     Optional,
 )
-from urllib.parse import quote_plus
+
 
 from asgiref.sync import sync_to_async
+import app.compat.shims
 from langchain_core.messages import (
     BaseMessage,
     ToolMessage,
     convert_to_openai_messages,
 )
-from langchain_openai import ChatOpenAI
-import app.compat.shims
+
+
 
 from langfuse.langchain.CallbackHandler import LangchainCallbackHandler
 
@@ -35,6 +34,7 @@ from app.core.config import (
     settings,
 )
 from app.core.langgraph.tools import tools
+from app.core.llm import LLM
 from app.core.logging import logger
 from app.core.metrics import llm_inference_duration_seconds
 from app.core.prompts import SYSTEM_PROMPT
@@ -42,6 +42,7 @@ from app.schemas import (
     GraphState,
     Message,
 )
+from app.services.yandex import sdk
 from app.utils import (
     dump_messages,
     prepare_messages,
@@ -58,38 +59,14 @@ class LangGraphAgent:
     def __init__(self):
         """Initialize the LangGraph Agent with necessary components."""
         # Use environment-specific LLM model
-        self.llm = ChatOpenAI(
-            model=settings.LLM_MODEL,
-            temperature=settings.DEFAULT_LLM_TEMPERATURE,
-            api_key=settings.LLM_API_KEY,
-            max_tokens=settings.MAX_TOKENS,
-            **self._get_model_kwargs(),
-        ).bind_tools(tools)
+        self.llm = LLM.bind_tools(tools)
         self.tools_by_name = {tool.name: tool for tool in tools}
         self._connection_pool: Optional[AsyncConnectionPool] = None
         self._graph: Optional[CompiledStateGraph] = None
 
         logger.info("llm_initialized", model=settings.LLM_MODEL, environment=settings.ENVIRONMENT.value)
 
-    def _get_model_kwargs(self) -> Dict[str, Any]:
-        """Get environment-specific model kwargs.
 
-        Returns:
-            Dict[str, Any]: Additional model arguments based on environment
-        """
-        model_kwargs = {}
-
-        # Development - we can use lower speeds for cost savings
-        if settings.ENVIRONMENT == Environment.DEVELOPMENT:
-            model_kwargs["top_p"] = 0.8
-
-        # Production - use higher quality settings
-        elif settings.ENVIRONMENT == Environment.PRODUCTION:
-            model_kwargs["top_p"] = 0.95
-            model_kwargs["presence_penalty"] = 0.1
-            model_kwargs["frequency_penalty"] = 0.1
-
-        return model_kwargs
 
     async def _get_connection_pool(self) -> AsyncConnectionPool:
         """Get a PostgreSQL connection pool using environment-specific settings.
@@ -102,14 +79,8 @@ class LangGraphAgent:
                 # Configure pool size based on environment
                 max_size = settings.POSTGRES_POOL_SIZE
 
-                connection_url = (
-                    "postgresql://"
-                    f"{quote_plus(settings.POSTGRES_USER)}:{quote_plus(settings.POSTGRES_PASSWORD)}"
-                    f"@{settings.POSTGRES_HOST}:{settings.POSTGRES_PORT}/{settings.POSTGRES_DB}"
-                )
-
                 self._connection_pool = AsyncConnectionPool(
-                    connection_url,
+                    settings.connection_url,
                     open=False,
                     max_size=max_size,
                     kwargs={

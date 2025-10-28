@@ -35,18 +35,13 @@ class S3Service:
         return ext.lower() if ext else ""
 
     def _public_url(self, key: str) -> str:
-        if self._public_base:
-            base = self._public_base.rstrip("/")
-            return f"{base}/{key}"
-        # AWS style
-        region = settings.S3_REGION
-        return f"https://{self._bucket}.s3.{region}.amazonaws.com/{key}"
+        base = self._public_base.rstrip("/")
+        return f"{base}/{key}"
 
     async def upload_file(
             self,
             file: UploadFile,
             session_id: str,
-            created_by: str,
             key_prefix: str = "sessions",
             override_filename: Optional[str] = None,
     ) -> dict:

@@ -130,7 +130,6 @@ async def upload_files(
         up = await s3_service.upload_file(
             file=f,
             session_id=session_id,
-            created_by=str(user_id),
         )
         await f.seek(0)
         embedding = embedding_pipeline.index_file(file_id=file_id, filename=name, content_type=up["content_type"],

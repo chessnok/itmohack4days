@@ -16,6 +16,7 @@ from typing import (
     Optional,
     Union,
 )
+from urllib.parse import quote_plus
 
 from dotenv import load_dotenv
 
@@ -144,7 +145,7 @@ class Settings:
         self.S3_BUCKET: str= os.getenv("S3_BUCKET", "")
         self.S3_ACCESS_KEY_ID: str =os.getenv("S3_ACCESS_KEY_ID", "")
         self.S3_SECRET_ACCESS_KEY: str =os.getenv("S3_SECRET_ACCESS_KEY", "")
-        self.S3_PUBLIC_BASE_URL: str | None = os.getenv("S3_PUBLIC_BASE_URL:", "")
+        self.S3_PUBLIC_BASE_URL: str | None = os.getenv("S3_PUBLIC_BASE_URL", "")
 
         # CORS Settings
         self.ALLOWED_ORIGINS = parse_list_from_env("ALLOWED_ORIGINS", ["*"])
@@ -181,6 +182,11 @@ class Settings:
         self.POSTGRES_MAX_OVERFLOW = int(os.getenv("POSTGRES_MAX_OVERFLOW", "10"))
         self.CHECKPOINT_TABLES = ["checkpoint_blobs", "checkpoint_writes", "checkpoints"]
 
+        self.connection_url = (
+            "postgresql://"
+            f"{quote_plus(self.POSTGRES_USER)}:{quote_plus(self.POSTGRES_PASSWORD)}"
+            f"@{self.POSTGRES_HOST}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
+        )
         # Rate Limiting Configuration
         self.RATE_LIMIT_DEFAULT = parse_list_from_env("RATE_LIMIT_DEFAULT", ["200 per day", "50 per hour"])
 
@@ -210,6 +216,13 @@ class Settings:
         self.EVALUATION_SLEEP_TIME = int(os.getenv("EVALUATION_SLEEP_TIME", "10"))
 
         self.EMBEDDING_MODEL=os.getenv("EMBEDDING_MODEL", "text-embedding-ada-002")
+        self.PROVIDER=os.getenv("PROVODER", "OPEANAI")
+        self.FOLDER=os.getenv("FOLDER", "langchain-embeddings")
+        self.EMBEDDING_DIM = int(os.getenv("EMBEDDING_DIM", "1536"))
+        self.LLM_BASE_URL = os.getenv("LLM_BASE_URL", "https://api.openai.com/v1")
+        self.MODEL_URL=f"gpt://{self.FOLDER}/yandexgpt/latest"
+        self.FOLDER_LLM=self.FOLDER
+
 
         # Apply environment-specific settings
         self.apply_environment_settings()

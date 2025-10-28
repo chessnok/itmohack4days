@@ -7,6 +7,7 @@ and other external integrations.
 
 from langchain_core.tools.base import BaseTool
 
+from .QueryTool import file_search_tool
 from .duckduckgo_search import duckduckgo_search_tool
 
-tools: list[BaseTool] = [duckduckgo_search_tool]
+tools: list[BaseTool] = [duckduckgo_search_tool,file_search_tool]

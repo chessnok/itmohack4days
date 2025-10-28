@@ -9,7 +9,9 @@ from sqlmodel import (
     SQLModel,
 )
 
-EMBEDDING_DIM = 1536
+from app.core.config import settings
+
+
 class FileObject(SQLModel, table=True):
     __tablename__ = "file_objects"
 
@@ -17,7 +19,7 @@ class FileObject(SQLModel, table=True):
     file_name: str = Field(default="")
     description: str = Field(default="")
     created_by: str
-    vector:  list[float] = Field(sa_column=Column(PGVector(EMBEDDING_DIM)))
+    embedding:  list[float] = Field(sa_column=Column(PGVector(settings.EMBEDDING_DIM)))
     session_id: str
     file_type: str = Field(default="")
     s3_key: str
@@ -25,13 +27,10 @@ class FileObject(SQLModel, table=True):
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
 class FileChunk(SQLModel, table=True):
-    __tablename__ = "file_chunks "
+    __tablename__ = "file_chunks"
     id: str = Field(primary_key=True)
     file_id: str = Field(default="")
-    embedding:  list[float] = Field(sa_column=Column(PGVector(EMBEDDING_DIM)))
+    embedding:  list[float] = Field(sa_column=Column(PGVector(settings.EMBEDDING_DIM)))
     content: str = Field(default="")
     chunk_index: int
 
-
-
-#file_chunks (id, file_id, chunk_index, content, embedding)

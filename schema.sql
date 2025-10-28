@@ -53,3 +53,19 @@ create table file_chunks
 );
 
 
+CREATE OR REPLACE VIEW public.v_file_chunks AS
+SELECT fc.id,
+       fc.file_id,
+       fc.chunk_index,
+       fc.content,
+       fc.embedding,
+       fo.file_name,
+       fo.file_type,
+       fo.session_id,
+       fo.created_by,
+       fo.created_at,
+       description,
+       fo.s3_url,
+       fo.s3_key
+FROM file_chunks fc
+         JOIN file_objects fo ON fo.id::text = fc.file_id::text

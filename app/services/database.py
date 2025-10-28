@@ -266,7 +266,7 @@ class DatabaseService:
                 id=id,
                 file_name=file_name,
                 description=description,
-                vector=vector,
+                embedding=vector,
                 created_by=created_by,
                 session_id=session_id,
                 file_type=file_type,
