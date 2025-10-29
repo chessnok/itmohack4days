@@ -39,11 +39,11 @@ class S3Service:
         return f"{base}/{key}"
 
     async def upload_file(
-            self,
-            file: UploadFile,
+            self, content_type :str,
+            filename: str,
             session_id: str,
+            data: bytes,
             key_prefix: str = "sessions",
-            override_filename: Optional[str] = None,
     ) -> dict:
         """
         Загружает файл в S3 под ключом:
@@ -51,28 +51,8 @@ class S3Service:
 
         Возвращает: { key, url, content_type, size, stored_name }
         """
-        # читаем по кускам и ограничиваем размер при необходимости (пример: 50 МБ)
-        max_size = 50 * 1024 * 1024
-        chunks = []
-        size = 0
-        while True:
-            chunk = await file.read(1024 * 1024)
-            if not chunk:
-                break
-            size += len(chunk)
-            if size > max_size:
-                raise HTTPException(
-                    status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
-                    detail=f"File too large (> {max_size} bytes)",
-                )
-            chunks.append(chunk)
-        data = b"".join(chunks)
 
-        # определим content type
-        content_type = file.content_type or mimetypes.guess_type(file.filename or "")[0] or "application/octet-stream"
-
-        # сгенерим имя
-        ext = self._guess_ext(file.filename or override_filename)
+        ext = self._guess_ext(filename)
         stored_name = f"{uuid.uuid4().hex}{ext}"
         key = f"{key_prefix}/{session_id}/{stored_name}"
 
@@ -97,7 +77,6 @@ class S3Service:
         logger.info(
             "s3_file_uploaded",
             key=key,
-            size=size,
             content_type=content_type,
             etag=etag,
             url=url,
@@ -108,7 +87,6 @@ class S3Service:
             "url": url,
             "etag": etag,
             "content_type": content_type,
-            "size": size,
             "stored_name": stored_name,
         }
 

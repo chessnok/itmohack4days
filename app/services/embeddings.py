@@ -10,6 +10,8 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 from pdfreader.types import Image
 from pypdf import PdfReader
 
+from app.utils.graph import tokenizer
+
 router = APIRouter()
 
 
@@ -35,10 +37,20 @@ class EmbeddingPipeline:
                 openai_api_base=settings.EVALUATION_BASE_URL
             )
 
-        self.splitter = RecursiveCharacterTextSplitter(
+        self.splitter = RecursiveCharacterTextSplitter.from_huggingface_tokenizer(
+            tokenizer = tokenizer,
             chunk_size=1000,
-            chunk_overlap=150,
-            length_function=len,
+            chunk_overlap=100,
+            separators=[
+                "\n\n",                # разделы / абзацы
+                "СТРАНИЦА",            # иногда встречается при OCR PDF
+                "Раздел", "Пункт", "Приложение", "Прил.",  # правовые структуры
+                "ПРИЛОЖЕНИЕ", "ПОДПИСИ", "ПОДПИСАНО",
+                "ДОГОВОР", "АКТ", "СЧЕТ-ФАКТУРА",
+                "Универсальный передаточный документ", "Товарная накладная",
+                "\n",                  # строки, если ничего не подошло
+                " ",                   # fallback — символы
+            ],
         )
 
     def _chunks(self, text: str) -> List[str]:
@@ -61,11 +73,11 @@ class EmbeddingPipeline:
         text = FileTextExtractor.extract(file_bytes, filename, content_type)
         if not text:
             logger.warning("embedding_empty_text", file_id=file_id, filename=filename)
-            return 0
+            return [], ""
 
         chunks = self._chunks(text)
         if not chunks:
-            return 0
+            return [], ""
 
         vectors = self.emb.embed_documents(chunks)
 
@@ -73,7 +85,7 @@ class EmbeddingPipeline:
             database_service._insert_chunks(sql_sess, file_id, chunks, vectors)
 
         logger.info("embedding_indexed", file_id=file_id, chunks=len(chunks))
-        return np.mean(np.array(vectors, dtype=float), axis=0).tolist()
+        return np.mean(np.array(vectors, dtype=float), axis=0).tolist(), text
 
 class FileTextExtractor:
     @staticmethod

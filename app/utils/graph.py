@@ -6,6 +6,7 @@ from langchain_core.messages import trim_messages as _trim_messages, BaseMessage
 from transformers import AutoTokenizer
 
 from app.core.config import settings
+from app.core.logging import logger
 from app.schemas import Message
 
 
@@ -45,7 +46,6 @@ def prepare_messages(messages: list[Message], llm: BaseChatModel, system_prompt:
 MODEL_ID = "yandex/YandexGPT-5-Lite-8B-pretrain"
 
 def _load_tokenizer():
-    # сначала пробуем fast, если не вышло — fall back на slow
     try:
         return AutoTokenizer.from_pretrained(MODEL_ID, trust_remote_code=True)
     except Exception:
@@ -60,12 +60,12 @@ def _to_text(messages: Union[str, List[BaseMessage]], tokenizer) -> str:
         return tokenizer.apply_chat_template(
             chat, tokenize=False, add_generation_prompt=False
         )
-    except Exception:
-        # Фолбэк: просто склеим реплики
+    except Exception as e:
+        logger.warn(e)
         return "\n".join(f"{getattr(m, 'type', 'user')}: {m.content}" for m in messages)
 
 def count_tokens(messages: Union[str, List[BaseMessage]]) -> int:
-    tokenizer = _load_tokenizer()
     text = _to_text(messages, tokenizer)
     # Надёжный подсчёт без спец-токенов
     return len(tokenizer.encode(text, add_special_tokens=False))
+tokenizer = _load_tokenizer()

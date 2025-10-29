@@ -11,9 +11,11 @@ from datetime import (
 from time import sleep
 
 import openai
-from langfuse import Langfuse
+
 from langfuse.api.resources.commons.types.trace_with_details import TraceWithDetails
 from tqdm import tqdm
+
+from app.core.llm import langfuse_cli
 
 # Fix import path for app module
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -47,7 +49,7 @@ class Evaluator:
     def __init__(self):
         """Initialize Evaluator with OpenAI and Langfuse clients."""
         self.client = openai.AsyncOpenAI(api_key=settings.EVALUATION_API_KEY, base_url=settings.EVALUATION_BASE_URL)
-        self.langfuse = Langfuse(public_key=settings.LANGFUSE_PUBLIC_KEY, secret_key=settings.LANGFUSE_SECRET_KEY)
+        self.langfuse = langfuse_cli
         # Initialize report data structure
         self.report = initialize_report(settings.EVALUATION_LLM)
         initialize_metrics_summary(self.report, metrics)

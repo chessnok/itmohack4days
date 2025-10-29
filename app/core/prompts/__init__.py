@@ -14,5 +14,4 @@ def load_system_prompt():
             current_date_and_time=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         )
 
-
 SYSTEM_PROMPT = load_system_prompt()

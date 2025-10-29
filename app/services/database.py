@@ -1,7 +1,7 @@
 """This file contains the database service for the application."""
 import uuid
 from typing import (
-    List, )
+    List, Dict, Any, )
 from typing import Optional
 
 from fastapi import HTTPException
@@ -260,6 +260,7 @@ class DatabaseService:
             file_type: str,
             s3_key: str,
             s3_url: str,
+            metadata_json:str,
     ) -> FileObject:
         with Session(self.engine) as session:
             obj = FileObject(
@@ -272,6 +273,7 @@ class DatabaseService:
                 file_type=file_type,
                 s3_key=s3_key,
                 s3_url=s3_url,
+                metadata_json=metadata_json
             )
             session.add(obj)
             session.commit()

@@ -1,16 +1,18 @@
 import asyncio
+import mimetypes
 import os
 import uuid
 from pathlib import Path
-from typing import List
+from typing import List, Dict, Any, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, status
 
-from app.api.v1.auth import get_current_user, get_current_session
+from app.api.v1.auth import get_current_session
 from app.core.logging import logger
 from app.models.session import Session
 from app.services import database_service
 from app.services.embeddings import embedding_pipeline
+from app.services.parser import parser_service
 from app.services.s3 import s3_service
 
 router = APIRouter()
@@ -113,9 +115,10 @@ async def upload_files(
 
 ):
     """
-    Загружает один или несколько файлов (.docx, .pdf, изображения) на сервер.
+    Загружает один или несколько файлов (.docx, .pdf, изображения) на сервер,
+    выполняет OCR/текстовое извлечение и парсит метаданные по заданному промту.
 
-    Возвращает список с метаданными загруженных файлов.
+    Возвращает список с метаданными загруженных файлов, результатами OCR и парсинга.
     """
     if not files:
         raise HTTPException(status_code=400, detail="No files provided")
@@ -124,36 +127,71 @@ async def upload_files(
 
     results = []
     for f in files:
-        file_id = uuid.uuid4().hex
-        name = f.filename or up["stored_name"]
-        # 1) Заливаем в S3
-        up = await s3_service.upload_file(
-            file=f,
-            session_id=session_id,
-        )
-        await f.seek(0)
-        embedding = embedding_pipeline.index_file(file_id=file_id, filename=name, content_type=up["content_type"],
-                                                  file_bytes= await f.read())
+        try:
+            file_id = uuid.uuid4().hex
+            file_bytes: bytes = await f.read()
+            content_type= f.content_type or mimetypes.guess_type(f.filename or "")[0] or "application/octet-stream"
 
-        obj = await database_service.create_file_object(
-            id=file_id,
-            file_name=name,
-            description="",
-            vector = embedding,
-            created_by=str(user_id),
-            session_id=session_id,
-            file_type=up["content_type"],
-            s3_key=up["key"],
-            s3_url=up["url"],
-        )
+            up = await s3_service.upload_file(
+                filename=f.filename,
+                content_type=content_type,
+                data=file_bytes,
+                session_id=session_id,
+            )
 
-        results.append({
-            "id": obj.id,
-            "file_name": obj.file_name,
-            "file_type": obj.file_type,
-            "url": obj.s3_url,
-            "s3_key": obj.s3_key,
-        })
+            stored_name = up.get("stored_name")
 
-    logger.info("files_uploaded_and_recorded", count=len(results), session_id=session_id, user_id=user_id)
+            name = f.filename or stored_name or f"{file_id}"
+
+            embedding, text = embedding_pipeline.index_file(
+                file_id=file_id,
+                filename=name,
+                content_type=content_type,
+                file_bytes=file_bytes,
+            )
+
+            parsed_meta: str = parser_service.extract_metadata(
+                text=text,
+                filename=name,
+            )
+
+            obj = await database_service.create_file_object(
+                id=file_id,
+                file_name=name,
+                description="",
+                vector=embedding,
+                created_by=str(user_id),
+                session_id=session_id,
+                file_type=content_type,
+                s3_key=up["key"],
+                s3_url=up["url"],
+                metadata_json=parsed_meta,
+            )
+
+            # 6) Ответ клиенту
+            result_item: Dict[str, Any] = {
+                "id": obj.id,
+                "file_name": obj.file_name,
+                "file_type": obj.file_type,
+                "url": obj.s3_url,
+                "s3_key": obj.s3_key,
+                "metadata": parsed_meta,
+            }
+            results.append(result_item)
+
+        except Exception as e:
+            logger.exception("file_upload_or_ocr_failed", filename=getattr(f, "filename", None), session_id=session_id)
+            results.append({
+                "id": None,
+                "file_name": getattr(f, "filename", None),
+                "error": str(e),
+            })
+
+    logger.info(
+        "files_uploaded_ocr_parsed",
+        count=len(results),
+        session_id=session_id,
+        user_id=user_id
+    )
     return {"files": results}
+

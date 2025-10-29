@@ -44,7 +44,11 @@ dependencies = [
     "langchain-postgres==0.0.15",
     "greenlet",
     "transformers",
-    "sentencepiece"
+    "sentencepiece",
+    "openai",
+    "langchain-openai",
+    "langchain",
+    "langchain-core"
 ]
 
 [project.optional-dependencies]

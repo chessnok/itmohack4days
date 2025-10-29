@@ -24,6 +24,7 @@ class FileObject(SQLModel, table=True):
     file_type: str = Field(default="")
     s3_key: str
     s3_url: str
+    metadata_json:str
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
 class FileChunk(SQLModel, table=True):
