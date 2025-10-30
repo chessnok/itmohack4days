@@ -7,13 +7,15 @@ from app.core.config import settings
 from app.models.file import FileObject, FileChunk
 from app.services.embeddings import embedding_pipeline
 
-meta = list(set([k for k in FileObject.model_fields.keys() if k not in ["id", "embedding", "content"]] +[k for k in FileChunk.model_fields.keys() if k not in ["id", "embedding","content"]]))
+meta = list(set([k for k in FileObject.model_fields.keys() if k not in ["id", "embedding", "content","metadata_json"]] +
+                [k for k in FileChunk.model_fields.keys() if k not in ["id", "embedding","content"]]))
 vectorstore2 = PGVectorStore.create_sync(
     engine=PGEngine.from_connection_string( url=f"postgresql+asyncpg://{settings.POSTGRES_USER}:{settings.POSTGRES_PASSWORD}@{settings.POSTGRES_HOST}:{settings.POSTGRES_PORT}/{settings.POSTGRES_DB}"),
     embedding_service=embedding_pipeline.emb,
     embedding_column="embedding",
     id_column="id",
     metadata_columns=meta,
+    metadata_json_column="metadata_json",
     table_name="v_file_chunks"
 
 )

@@ -1,14 +1,11 @@
-import io
 import mimetypes
 from typing import List
 
 import docx2txt
 import numpy as np
-import pytesseract
+from PIL import ImageOps
 from fastapi import APIRouter
 from langchain_text_splitters import RecursiveCharacterTextSplitter
-from pdfreader.types import Image
-from pypdf import PdfReader
 
 from app.utils.graph import tokenizer
 
@@ -116,15 +113,46 @@ class FileTextExtractor:
         raise ValueError(f"Unsupported file type for embeddings: {content_type} / {filename}")
 
     @staticmethod
-    def _extract_pdf(file_bytes: bytes) -> str:
-        reader = PdfReader(io.BytesIO(file_bytes))
-        texts = []
-        for page in reader.pages:
-            try:
-                texts.append(page.extract_text() or "")
-            except Exception:
-                pass
-        return "\n".join(t for t in texts if t).strip()
+    def _extract_pdf(file_bytes: bytes, *, ocr_lang: str = "eng+rus", ocr_pages_limit: int = 5) -> str:
+        """
+        Надёжная экстракция текста из PDF:
+        1) PyPDF (быстро, если нормальный текстовый слой)
+        2) pdfminer.six (лучше справляется с битой структурой)
+        3) OCR через pypdfium2 + pytesseract (на первых N страниц)
+        """
+        # If это не особо похоже на PDF — сразу в OCR-фоллбек (или возврат "")
+        if not _looks_like_pdf(file_bytes):
+            return _pdf_ocr_fallback(file_bytes, ocr_lang, ocr_pages_limit)
+
+        # 1) PyPDF
+        try:
+            reader = PdfReader(io.BytesIO(file_bytes))
+            texts = []
+            for page in reader.pages:
+                try:
+                    texts.append(page.extract_text() or "")
+                except Exception:
+                    # Падение на одной странице не должно ломать весь документ
+                    continue
+            text = "\n".join(t for t in texts if t).strip()
+            if text:
+                return text
+        except (PdfStreamError, Exception):
+            # пойдём дальше
+            pass
+
+        # 2) pdfminer.six
+        try:
+            text = pdfminer_extract_text(io.BytesIO(file_bytes)) or ""
+            text = text.strip()
+            if text:
+                return text
+        except Exception:
+            pass
+
+        # 3) OCR (если доступно)
+        return _pdf_ocr_fallback(file_bytes, ocr_lang, ocr_pages_limit)
+
 
     @staticmethod
     def _extract_docx(file_bytes: bytes) -> str:
@@ -137,11 +165,58 @@ class FileTextExtractor:
             text = docx2txt.process(tmp.name) or ""
         return text.strip()
 
+
+
     @staticmethod
     def _extract_image_ocr(file_bytes: bytes) -> str:
+        # 1) Открытие + исправление EXIF-ориентации
         img = Image.open(io.BytesIO(file_bytes))
-        # при желании: img = img.convert("L") для улучшения OCR
-        text = pytesseract.image_to_string(img, lang="eng+rus")
+        img = ImageOps.exif_transpose(img)
+
+        # 2) В градации серого
+        img = img.convert("L")
+
+        text = pytesseract.image_to_string(img, lang="rus+eng")
         return (text or "").strip()
 
 embedding_pipeline = EmbeddingPipeline()
+
+
+
+import io
+
+from pypdf import PdfReader
+from pypdf.errors import PdfStreamError
+from pdfminer.high_level import extract_text as pdfminer_extract_text
+
+
+import pypdfium2 as pdfium
+
+from PIL import Image
+import pytesseract
+
+
+def _looks_like_pdf(data: bytes) -> bool:
+    # Простая проверка сигнатуры
+    return data.startswith(b"%PDF")
+
+
+def _pdf_ocr_fallback(file_bytes: bytes, ocr_lang: str, pages_limit: int) -> str:
+
+    try:
+        pdf = pdfium.PdfDocument(io.BytesIO(file_bytes))
+        n = min(len(pdf), max(1, pages_limit))
+        out_texts = []
+        for i in range(n):
+            page = pdf[i]
+            # Рендерим в растровое изображение
+            pil_image = page.render(scale=2).to_pil()  # scale>1 для улучшения OCR
+            # При желании: pil_image = pil_image.convert("L")
+            txt = pytesseract.image_to_string(pil_image, lang=ocr_lang) or ""
+            txt = txt.strip()
+            if txt:
+                out_texts.append(txt)
+        return "\n\n".join(out_texts).strip()
+    except Exception:
+        return ""
+

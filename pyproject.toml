@@ -48,7 +48,14 @@ dependencies = [
     "openai",
     "langchain-openai",
     "langchain",
-    "langchain-core"
+    "langchain-core",
+    "rarfile"
+    , "py7zr",
+    "olefile",
+    "pdfminer.six",
+    "pypdfium2",
+    "pillow",
+    "pytesseract"
 ]
 
 [project.optional-dependencies]
