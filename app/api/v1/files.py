@@ -19,6 +19,7 @@ from app.api.v1.auth import get_current_session
 from app.core.logging import logger
 from app.models.session import Session
 from app.services import database_service
+from app.services.classifier import classifier_service
 from app.services.embeddings import embedding_pipeline
 from app.services.parser import parser_service
 from app.services.s3 import s3_service
@@ -272,51 +273,12 @@ async def _process_single_file(
     )
     stored_name = up.get("stored_name")
     name = filename or stored_name or f"{file_id}"
-
-    # 2) Индексация/извлечение текста
-    embedding, text = embedding_pipeline.index_file(
-        file_id=file_id,
-        filename=name,
-        content_type=ctype,
-        file_bytes=file_bytes,
-    )
-
-    # 3) Парсинг метаданных
-    parsed_meta: str = parser_service.extract_metadata(
-        text=text,
-        filename=name,
-    )
-
-    # 4) Упакуем расширенные метаданные с данными пакета
-    meta_obj: Dict[str, Any] = {
-        "package_id": outer_package_id,
-        "package_name": outer_package_name,
-        "source_archive": original_outer_name,
-        "indexed_at": datetime.utcnow().isoformat() + "Z",
-    }
-
-    if _is_json(parsed_meta):
-        try:
-            parsed_data = json.loads(parsed_meta)
-            # Добавляем ключи parsed_meta напрямую в meta_obj
-            for k, v in parsed_data.items():
-                # если ключ уже есть в meta_obj — добавляем префикс, чтобы не затирать
-                if k in meta_obj:
-                    meta_obj[f"parsed_{k}"] = v
-                else:
-                    meta_obj[k] = v
-        except Exception as e:
-            logger.warning("failed_to_merge_parsed_json", error=str(e))
-            meta_obj["parsed_raw"] = parsed_meta
-    else:
-        meta_obj["parsed_raw"] = parsed_meta
-
-    # 5) Сохраним в БД (package_id добавляем в metadata_json; схему БД менять не требуется)
+    meta_obj = classifier_service.classify(up["url"], ctype.startswith("image/"))
+    meta2obj = parser_service.parse(up["url"], ctype.startswith("image/"),meta_obj["document_type"])
     obj = await database_service.create_file_object(
         id=file_id,
         file_name=name,
         description=f"uploaded{' from archive' if outer_package_id else ''}",
-        vector=embedding,
         created_by=str(user_id),
         session_id=session_id,
         file_type=ctype,
@@ -334,7 +296,8 @@ async def _process_single_file(
         "s3_key": obj.s3_key,
         "package_id": outer_package_id,
         "package_name": outer_package_name,
-        "metadata": meta_obj,  # уже объект, удобнее клиенту
+        "metadata1": meta_obj,  # уже объект, удобнее клиенту
+        "metadata2": meta2obj
     }
 
 @router.post(
@@ -421,7 +384,7 @@ async def upload_files(
                     outer_package_name=None,
                     original_outer_name=None,
                     session_id=session_id,
-                    user_id=user_id,
+                    user_id=str(user_id),
                     filename=outer_name,
                     file_bytes=outer_bytes,
                     content_type=outer_content_type,

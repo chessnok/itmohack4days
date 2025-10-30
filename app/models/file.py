@@ -19,7 +19,6 @@ class FileObject(SQLModel, table=True):
     file_name: str = Field(default="")
     description: str = Field(default="")
     created_by: str
-    embedding:  list[float] = Field(sa_column=Column(PGVector(settings.EMBEDDING_DIM)))
     session_id: str
     file_type: str = Field(default="")
     s3_key: str

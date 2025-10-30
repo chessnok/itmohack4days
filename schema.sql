@@ -1,3 +1,4 @@
+create extension if not exists vector;
 create table public."user"
 (
     created_at      timestamp not null,

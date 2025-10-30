@@ -31,7 +31,7 @@ handler = CallbackHandler()
 llm_client = OpenAI(
     api_key=settings.LLM_API_KEY,
     base_url=settings.LLM_BASE_URL,
-    project=settings.FOLDER_LLM,
+    # project=settings.FOLDER_LLM,
 )
 LLM = ChatOpenAI(
     api_key=settings.LLM_API_KEY,
