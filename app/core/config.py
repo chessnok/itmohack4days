@@ -222,7 +222,7 @@ class Settings:
         self.LLM_BASE_URL = os.getenv("LLM_BASE_URL", "https://api.openai.com/v1")
         self.MODEL_URL=f"gpt://{self.FOLDER}/yandexgpt/latest"
         self.FOLDER_LLM=self.FOLDER
-
+        self.C1_UPLOAD_PATH = os.getenv("C1_UPLOAD_PATH", "http://localhost:8080/")
 
         # Apply environment-specific settings
         self.apply_environment_settings()

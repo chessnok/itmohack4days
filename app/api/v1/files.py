@@ -19,8 +19,8 @@ from app.api.v1.auth import get_current_session
 from app.core.logging import logger
 from app.models.session import Session
 from app.services import database_service
+from app.services.c1 import C1Uploader
 from app.services.classifier import classifier_service
-from app.services.embeddings import embedding_pipeline
 from app.services.parser import parser_service
 from app.services.s3 import s3_service
 
@@ -275,6 +275,7 @@ async def _process_single_file(
     name = filename or stored_name or f"{file_id}"
     meta_obj = classifier_service.classify(up["url"], ctype.startswith("image/"))
     meta2obj = parser_service.parse(up["url"], ctype.startswith("image/"),meta_obj["document_type"])
+    await C1Uploader.upload_file(meta2obj)
     obj = await database_service.create_file_object(
         id=file_id,
         file_name=name,
